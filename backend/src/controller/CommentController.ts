@@ -14,11 +14,12 @@ export class CommentController {
   }
 
   async createComment(req: Request, res: Response) {
-    const { author, text, image } = req.body;
+    const { author, parent, text, image } = req.body;
 
     try {
       const comment = await this.commentService.createComment({
         author,
+        parent,
         text,
         image,
       });

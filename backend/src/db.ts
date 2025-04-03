@@ -15,10 +15,7 @@ export class Database {
     });
   }
 
-  async query(
-    text: string | QueryArrayConfig<any>,
-    params: (string | number)[]
-  ) {
+  async query(text: string | QueryArrayConfig<any>, params: (string | number)[]) {
     try {
       const result = await this.pool.query(text, params);
       return result;

@@ -3,6 +3,7 @@
 A simple full-stack application comments with real-time updates, using React for the frontend and Node.js with Express and PostgreSQL for the backend via Docker containerization.
 
 ## Project Structure
+
 ```
 .
 ├── README.md
@@ -48,26 +49,31 @@ A simple full-stack application comments with real-time updates, using React for
 ### Backend Setup
 
 1. Navigate to the backend directory:
+
 ```bash
 cd backend
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start PostgreSQL using Docker:
+
 ```bash
 docker compose up -d
 ```
 
 4. Run database migrations to seed data:
+
 ```bash
 node db/seed.js
 ```
 
 5. Start the backend server:
+
 ```bash
 ts-node src/server.ts
 ```
@@ -77,16 +83,19 @@ The backend server will be running on `http://localhost:3001`
 ### Frontend Setup
 
 1. Navigate to the frontend directory:
+
 ```bash
 cd frontend
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -103,12 +112,14 @@ The frontend application will be running on `http://localhost:3000` but targetin
 ## Technologies Used
 
 ### Frontend
+
 - React
 - TypeScript
 - Vite
 - Material-UI
 
 ### Backend
+
 - Node.js
 - Express
 - TypeScript
@@ -118,11 +129,13 @@ The frontend application will be running on `http://localhost:3000` but targetin
 ### Verifying Database Updates
 
 You can access the PostgreSQL comments table (in pgsql shell mode) via Docker by running:
+
 ```bash
 docker exec -it comments_db psql -U user -d comments
 ```
 
 Then, you should see:
+
 ```bash
 comments=#
 ```
@@ -130,16 +143,16 @@ comments=#
 After which you can run the following query:
 
 ```bash
-SELECT * FROM comments ORDER_BY created_at DESC;
+SELECT * FROM comments ORDER BY created_at DESC;
 ```
 
 You should see any new comments at the very top.
 
 Alternatively, if you don't wish to be in pgsql shell mode, you can run:
-```bash
-docker exec -it comments_db psql -U user -d comments -c 'SELECT * FROM comments ORDER_BY created_at DESC'
-```
 
+```bash
+docker exec -it comments_db psql -U user -d comments -c 'SELECT * FROM comments ORDER BY created_at DESC'
+```
 
 ### Follow-up
 

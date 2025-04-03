@@ -11,21 +11,9 @@ export class CommentsRouter extends BaseRouter {
   }
 
   protected initalizeRoutes(): void {
-    this.router.get(
-      "/",
-      this.commentController.getAllComments.bind(this.commentController)
-    );
-    this.router.post(
-      "/",
-      this.commentController.createComment.bind(this.commentController)
-    );
-    this.router.put(
-      "/:id",
-      this.commentController.updateComment.bind(this.commentController)
-    );
-    this.router.delete(
-      "/:id",
-      this.commentController.deleteComment.bind(this.commentController)
-    );
+    this.router.get("/", this.commentController.getAllComments.bind(this.commentController));
+    this.router.post("/", this.commentController.createComment.bind(this.commentController));
+    this.router.put("/:id", this.commentController.updateComment.bind(this.commentController));
+    this.router.delete("/:id", this.commentController.deleteComment.bind(this.commentController));
   }
 }

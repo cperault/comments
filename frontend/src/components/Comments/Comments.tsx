@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Container,
   Typography,
@@ -18,45 +18,28 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import SendIcon from "@mui/icons-material/Send";
-
-interface Comment {
-  id: number;
-  author: string;
-  parent: string;
-  text: string;
-  created_at: string;
-  likes: number;
-  image?: string;
-}
+import ReplyIcon from "@mui/icons-material/Reply";
+import {
+  Comment,
+  useCreateCommentMutation,
+  useDeleteCommentMutation,
+  useGetCommentsQuery,
+  useUpdateCommentMutation,
+} from "../../redux/commentsApi";
 
 type CommentTreeNode = Comment & { replies: CommentTreeNode[] };
 
 export const Comments = () => {
-  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [author, setAuthor] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editedText, setEditedText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [replyId, setReplyId] = useState<number | null>(null);
 
-  useEffect(() => {
-    const fetchComments = async () => {
-      try {
-        const response = await fetch("/api/comments");
-
-        if (!response.ok) throw new Error("Failed to fetch comments");
-
-        const data = await response.json();
-
-        setComments(data);
-      } catch (error) {
-        console.error("Error fetching comments:", error);
-      }
-    };
-
-    fetchComments();
-  }, []);
+  const { data: comments = [], isLoading: isLoadingComments } = useGetCommentsQuery();
+  const [createComment, { isLoading: isCreatingComment }] = useCreateCommentMutation();
+  const [updateComment, { isLoading: isUpdatingComment }] = useUpdateCommentMutation();
+  const [deleteComment] = useDeleteCommentMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,21 +47,13 @@ export const Comments = () => {
     if (!newComment.trim() || !author.trim()) return;
 
     try {
-      setIsSubmitting(true);
+      await createComment({
+        author,
+        parent: "",
+        text: newComment,
+        image: "",
+      }).unwrap();
 
-      const response = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ author, text: newComment, image: "" }),
-      });
-
-      setIsSubmitting(false);
-
-      if (!response.ok) throw new Error("Failed to create comment");
-
-      const newCommentData = await response.json();
-
-      setComments((prev) => [newCommentData, ...prev]);
       setNewComment("");
       setAuthor("");
     } catch (error) {
@@ -95,25 +70,9 @@ export const Comments = () => {
     if (!editedText.trim()) return;
 
     try {
-      setIsSaving(true);
-
-      const response = await fetch(`/api/comments/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: editedText }),
-      });
-
-      setIsSaving(false);
-
-      if (!response.ok) throw new Error("Failed to update comment");
-
-      setComments((prev) =>
-        prev.map((comment) =>
-          comment.id === id ? { ...comment, text: editedText } : comment
-        )
-      );
-
+      await updateComment({ id, text: editedText }).unwrap();
       setEditingId(null);
+      setEditedText("");
     } catch (error) {
       console.error("Error updating comment:", error);
     }
@@ -126,13 +85,28 @@ export const Comments = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const response = await fetch(`/api/comments/${id}`, { method: "DELETE" });
-
-      if (!response.ok) throw new Error("Failed to delete comment");
-
-      setComments((prev) => prev.filter((comment) => comment.id !== id));
+      await deleteComment(id).unwrap();
     } catch (error) {
       console.error("Error deleting comment:", error);
+    }
+  };
+
+  const handleReply = async (parentId: number, text: string) => {
+    if (!text.trim()) return;
+
+    try {
+      await createComment({
+        author,
+        parent: String(parentId),
+        text,
+        image: "",
+      }).unwrap();
+
+      setReplyId(null);
+      setNewComment("");
+      setAuthor("");
+    } catch (error) {
+      console.error("Error creating reply:", error);
     }
   };
 
@@ -143,11 +117,11 @@ export const Comments = () => {
       commentMap.set(comment.id, { ...comment, replies: [] });
     });
 
-    const rootComments: CommentTreeNode[] = [];
+    const allComments: CommentTreeNode[] = [];
 
     comments.forEach((comment) => {
       if (!comment.parent || comment.parent === "") {
-        rootComments.push(commentMap.get(comment.id)!);
+        allComments.push(commentMap.get(comment.id)!);
       } else {
         const parentId = Number(comment.parent);
         const parentComment = commentMap.get(parentId);
@@ -158,16 +132,20 @@ export const Comments = () => {
       }
     });
 
-    return rootComments;
+    return allComments;
   };
 
   const CommentItem = ({
     comment,
+    onReply,
     depth = 0,
   }: {
     comment: CommentTreeNode;
+    onReply: (parentId: number, text: string) => void;
     depth?: number;
   }) => {
+    const [replyText, setReplyText] = useState("");
+
     return (
       <Card variant="outlined" sx={{ mb: 2, ml: depth * 4 }}>
         <CardHeader
@@ -196,11 +174,7 @@ export const Comments = () => {
           ) : (
             <Typography variant="body1">{comment.text}</Typography>
           )}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ mt: 1, justifyContent: "flex-end" }}
-          >
+          <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: "flex-end" }}>
             <IconButton color="primary">
               <Stack direction="row" spacing={1}>
                 <ThumbUpIcon />
@@ -210,11 +184,8 @@ export const Comments = () => {
 
             {editingId === comment.id ? (
               <>
-                <IconButton
-                  color="success"
-                  onClick={() => handleSave(comment.id)}
-                >
-                  {isSaving ? (
+                <IconButton color="success" onClick={() => handleSave(comment.id)}>
+                  {isUpdatingComment ? (
                     <Stack direction="row" spacing={1}>
                       <SaveIcon />
                       <Typography>Saving...</Typography>
@@ -228,10 +199,7 @@ export const Comments = () => {
                 </IconButton>
               </>
             ) : (
-              <IconButton
-                color="default"
-                onClick={() => handleEdit(comment.id, comment.text)}
-              >
+              <IconButton color="default" onClick={() => handleEdit(comment.id, comment.text)}>
                 <EditIcon />
               </IconButton>
             )}
@@ -240,10 +208,52 @@ export const Comments = () => {
               <DeleteIcon />
             </IconButton>
           </Stack>
+          {replyId === comment.id ? (
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={2}
+                variant="outlined"
+                placeholder="Write a reply..."
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  onReply(comment.id, replyText);
+                  setReplyText("");
+                }}
+              >
+                Reply
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => {
+                  setReplyId(null);
+                  setReplyText("");
+                }}
+              >
+                Cancel
+              </Button>
+            </Stack>
+          ) : (
+            <IconButton
+              color="default"
+              onClick={() => {
+                setReplyId(comment.id);
+              }}
+            >
+              <ReplyIcon />
+            </IconButton>
+          )}
           {comment.replies.length > 0 && (
             <Stack spacing={2} sx={{ mt: 2 }}>
               {comment.replies.map((reply) => (
-                <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
+                <CommentItem key={reply.id} comment={reply} onReply={onReply} depth={depth + 1} />
               ))}
             </Stack>
           )}
@@ -281,19 +291,19 @@ export const Comments = () => {
             variant="contained"
             color="primary"
             startIcon={<SendIcon />}
-            disabled={!newComment.trim() || !author.trim() || isSubmitting}
+            disabled={!newComment.trim() || !author.trim() || isCreatingComment}
           >
-            {isSubmitting ? "Posting comment..." : "Post Comment"}
+            {isCreatingComment ? "Posting comment..." : "Post Comment"}
           </Button>
         </Stack>
       </form>
 
       <Stack spacing={2} sx={{ mt: 3 }}>
-        {comments.length === 0 ? (
+        {isLoadingComments ? (
           <Typography color="textSecondary">Loading comments...</Typography>
         ) : (
           nestComments(comments).map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
+            <CommentItem key={comment.id} comment={comment} onReply={handleReply} />
           ))
         )}
       </Stack>

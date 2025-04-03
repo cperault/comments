@@ -10,7 +10,7 @@ export const createApp = () => {
   const app = express();
 
   const dbPool = new Pool({
-    connectionString: config.databaseUrl
+    connectionString: config.databaseUrl,
   });
 
   app.use(cors());

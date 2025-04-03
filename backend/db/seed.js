@@ -24,9 +24,7 @@ async function seedDatabase() {
       );
     `);
 
-    const jsonData = JSON.parse(
-      fs.readFileSync(path.join(__dirname, "../data/comments2.json"), "utf-8")
-    );
+    const jsonData = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/comments.json"), "utf-8"));
 
     for (const comment of jsonData.comments) {
       await pool.query(

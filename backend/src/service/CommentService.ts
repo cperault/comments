@@ -10,10 +10,7 @@ export class CommentService {
       throw new Error("The database is not connected.");
     }
 
-    const result = await database.query(
-      "SELECT * FROM comments ORDER BY created_at DESC",
-      []
-    );
+    const result = await database.query("SELECT * FROM comments ORDER BY created_at DESC", []);
 
     if (result.rowCount === 0) {
       return { message: "No comments found" };
@@ -24,10 +21,12 @@ export class CommentService {
 
   public async createComment({
     author,
+    parent,
     text,
     image,
   }: {
     author: string;
+    parent: string;
     text: string;
     image: string;
   }) {
@@ -38,13 +37,11 @@ export class CommentService {
     }
 
     const now = new Date();
-    const currentTime = new Date(
-      now.getTime() - now.getTimezoneOffset() * 60000
-    ).toISOString();
+    const currentTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString();
 
     const result = await database.query(
-      "INSERT INTO comments (author, text, image, created_at) VALUES ($1, $2, $3, $4) RETURNING *",
-      [author, text, image, currentTime]
+      "INSERT INTO comments (author, parent, text, image, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [author, parent, text, image, currentTime]
     );
 
     return result.rows[0];
@@ -57,10 +54,7 @@ export class CommentService {
       throw new Error("The database is not connected.");
     }
 
-    const result = await database.query(
-      "UPDATE comments SET text = $1 WHERE id = $2 RETURNING *",
-      [text, id]
-    );
+    const result = await database.query("UPDATE comments SET text = $1 WHERE id = $2 RETURNING *", [text, id]);
 
     if (result.rowCount === 0) {
       throw new Error("Comment not found");
