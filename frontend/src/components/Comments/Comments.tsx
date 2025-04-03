@@ -22,11 +22,14 @@ import SendIcon from "@mui/icons-material/Send";
 interface Comment {
   id: number;
   author: string;
+  parent: string;
   text: string;
   created_at: string;
   likes: number;
   image?: string;
 }
+
+type CommentTreeNode = Comment & { replies: CommentTreeNode[] };
 
 export const Comments = () => {
   const [comments, setComments] = useState<Comment[]>([]);
@@ -133,6 +136,122 @@ export const Comments = () => {
     }
   };
 
+  const nestComments = (comments: Comment[]): CommentTreeNode[] => {
+    const commentMap = new Map<number, CommentTreeNode>();
+
+    comments.forEach((comment) => {
+      commentMap.set(comment.id, { ...comment, replies: [] });
+    });
+
+    const rootComments: CommentTreeNode[] = [];
+
+    comments.forEach((comment) => {
+      if (!comment.parent || comment.parent === "") {
+        rootComments.push(commentMap.get(comment.id)!);
+      } else {
+        const parentId = Number(comment.parent);
+        const parentComment = commentMap.get(parentId);
+
+        if (parentComment) {
+          parentComment.replies.push(commentMap.get(comment.id)!);
+        }
+      }
+    });
+
+    return rootComments;
+  };
+
+  const CommentItem = ({
+    comment,
+    depth = 0,
+  }: {
+    comment: CommentTreeNode;
+    depth?: number;
+  }) => {
+    return (
+      <Card variant="outlined" sx={{ mb: 2, ml: depth * 4 }}>
+        <CardHeader
+          avatar={
+            comment.image ? (
+              <Avatar src={comment.image} />
+            ) : (
+              <Avatar>
+                <AccountCircleIcon />
+              </Avatar>
+            )
+          }
+          title={comment.author}
+          subheader={new Date(comment.created_at).toLocaleString()}
+        />
+        <CardContent>
+          {editingId === comment.id ? (
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              variant="outlined"
+              value={editedText}
+              onChange={(e) => setEditedText(e.target.value)}
+            />
+          ) : (
+            <Typography variant="body1">{comment.text}</Typography>
+          )}
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ mt: 1, justifyContent: "flex-end" }}
+          >
+            <IconButton color="primary">
+              <Stack direction="row" spacing={1}>
+                <ThumbUpIcon />
+                <Typography variant="body1">{comment.likes}</Typography>
+              </Stack>
+            </IconButton>
+
+            {editingId === comment.id ? (
+              <>
+                <IconButton
+                  color="success"
+                  onClick={() => handleSave(comment.id)}
+                >
+                  {isSaving ? (
+                    <Stack direction="row" spacing={1}>
+                      <SaveIcon />
+                      <Typography>Saving...</Typography>
+                    </Stack>
+                  ) : (
+                    <SaveIcon />
+                  )}
+                </IconButton>
+                <IconButton color="warning" onClick={handleCancel}>
+                  <CancelIcon />
+                </IconButton>
+              </>
+            ) : (
+              <IconButton
+                color="default"
+                onClick={() => handleEdit(comment.id, comment.text)}
+              >
+                <EditIcon />
+              </IconButton>
+            )}
+
+            <IconButton color="error" onClick={() => handleDelete(comment.id)}>
+              <DeleteIcon />
+            </IconButton>
+          </Stack>
+          {comment.replies.length > 0 && (
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              {comment.replies.map((reply) => (
+                <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
+              ))}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <Container maxWidth="sm" sx={{ mt: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -173,80 +292,8 @@ export const Comments = () => {
         {comments.length === 0 ? (
           <Typography color="textSecondary">Loading comments...</Typography>
         ) : (
-          comments.map((comment) => (
-            <Card key={comment.id} variant="outlined">
-              <CardHeader
-                avatar={
-                  comment.image ? (
-                    <Avatar src={comment.image} />
-                  ) : (
-                    <Avatar>
-                      <AccountCircleIcon />
-                    </Avatar>
-                  )
-                }
-                title={comment.author}
-                subheader={new Date(comment.created_at).toLocaleString()}
-              />
-              <CardContent>
-                {editingId === comment.id ? (
-                  <TextField
-                    fullWidth
-                    multiline
-                    minRows={2}
-                    variant="outlined"
-                    value={editedText}
-                    onChange={(e) => setEditedText(e.target.value)}
-                  />
-                ) : (
-                  <Typography variant="body1">{comment.text}</Typography>
-                )}
-
-                <Stack direction="row" spacing={1} sx={{ mt: 1, justifyContent: "flex-end" }}>
-                  <IconButton color="primary">
-                    <Stack direction="row" spacing={1}>
-                      <ThumbUpIcon />
-                      <Typography variant="body1">{comment.likes}</Typography>
-                    </Stack>
-                  </IconButton>
-
-                  {editingId === comment.id ? (
-                    <>
-                      <IconButton
-                        color="success"
-                        onClick={() => handleSave(comment.id)}
-                      >
-                        {isSaving ? (
-                          <Stack direction="row" spacing={1}>
-                            <SaveIcon />
-                            <Typography>Saving...</Typography>
-                          </Stack>
-                        ) : (
-                          <SaveIcon />
-                        )}
-                      </IconButton>
-                      <IconButton color="warning" onClick={handleCancel}>
-                        <CancelIcon />
-                      </IconButton>
-                    </>
-                  ) : (
-                    <IconButton
-                      color="default"
-                      onClick={() => handleEdit(comment.id, comment.text)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  )}
-
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDelete(comment.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Stack>
-              </CardContent>
-            </Card>
+          nestComments(comments).map((comment) => (
+            <CommentItem key={comment.id} comment={comment} />
           ))
         )}
       </Stack>

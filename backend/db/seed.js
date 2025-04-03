@@ -15,6 +15,7 @@ async function seedDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
+        parent TEXT NOT NULL,
         author VARCHAR(255) NOT NULL,
         text TEXT NOT NULL,
         created_at TIMESTAMP NOT NULL,
@@ -24,14 +25,15 @@ async function seedDatabase() {
     `);
 
     const jsonData = JSON.parse(
-      fs.readFileSync(path.join(__dirname, "../data/comments.json"), "utf-8")
+      fs.readFileSync(path.join(__dirname, "../data/comments2.json"), "utf-8")
     );
 
     for (const comment of jsonData.comments) {
       await pool.query(
-        "INSERT INTO comments (author, text, created_at, likes, image) VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO comments (author, parent, text, created_at, likes, image) VALUES ($1, $2, $3, $4, $5, $6)",
         [
           comment.author,
+          comment.parent,
           comment.text,
           new Date(comment.date),
           comment.likes || 0,
